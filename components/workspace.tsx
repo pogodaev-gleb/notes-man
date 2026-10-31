@@ -188,6 +188,37 @@ export function Workspace() {
     }
   }, [note, refresh])
 
+  const deleteNote = useCallback(async () => {
+    if (!note) return
+    const path = note.path
+    if (!window.confirm(`Notiz löschen?\n\n${path}`)) return
+    try {
+      const removed = await api<{ path: string }>('/api/note/delete', {
+        method: 'POST',
+        body: JSON.stringify({ path }),
+      })
+      setSelected(null)
+      setNote(null)
+      setDraft('')
+      if (localStorage.getItem('lastNote') === path) localStorage.removeItem('lastNote')
+      await refresh()
+      setToast({
+        id: Date.now(),
+        message: `Gelöscht: ${path}`,
+        undo: async () => {
+          await api('/api/note/delete', {
+            method: 'PUT',
+            body: JSON.stringify({ path: removed.path, target: path }),
+          })
+          await refresh()
+          await openNote(path)
+        },
+      })
+    } catch (cause) {
+      setError((cause as Error).message)
+    }
+  }, [note, refresh, openNote])
+
   const moveNote = useCallback(
     async (targetFolder: string) => {
       if (!note) return
@@ -288,6 +319,7 @@ export function Workspace() {
           onSave={() => void save(draft)}
           onRename={(title) => void renameNote(title)}
           onArchive={() => void archiveNote()}
+          onDelete={() => void deleteNote()}
           onMove={(folder) => void moveNote(folder)}
           onTogglePreview={() => setPreview((current) => !current)}
         />

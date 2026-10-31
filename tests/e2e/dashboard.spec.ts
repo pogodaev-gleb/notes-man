@@ -34,4 +34,12 @@ test('create, edit, search, archive and undo', async ({ page }) => {
   await page.getByRole('button', { name: 'Rückgängig' }).click()
   await expect(page.locator('.toast')).toHaveCount(0)
   await expect(page.locator('.header-meta')).toHaveText('2 Notizen')
+
+  // delete + undo
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Löschen' }).click()
+  await expect(page.locator('.toast')).toContainText('Gelöscht:')
+  await page.getByRole('button', { name: 'Rückgängig' }).click()
+  await expect(page.locator('.toast')).toHaveCount(0)
+  await expect(page.locator('.header-meta')).toHaveText('2 Notizen')
 })

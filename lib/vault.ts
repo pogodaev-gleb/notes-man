@@ -7,6 +7,7 @@ import type { FolderInfo, NoteMeta, SearchHit, VaultListing } from './types'
 
 export const INBOX_FOLDER = '0-Inbox'
 export const ARCHIVE_FOLDER = '4-Archive'
+export const TRASH_FOLDER = '.trash'
 
 export class VaultUnavailableError extends Error {
   constructor(message: string) {
@@ -201,6 +202,40 @@ export async function restoreNote(relative: string): Promise<{ path: string }> {
   await fs.rename(absolute, destination)
   dropCached(absolute)
   const rootReal = await fs.realpath(root)
+  return { path: toPosix(path.relative(rootReal, destination)) }
+}
+
+export async function deleteNote(relative: string): Promise<{ path: string }> {
+  const root = await assertVault()
+  const absolute = await resolveNotePath(root, relative)
+  const trashDir = path.join(root, TRASH_FOLDER)
+  await fs.mkdir(trashDir, { recursive: true })
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const destination = await uniquePath(trashDir, `${stamp}__${path.basename(absolute)}`)
+
+  await fs.rename(absolute, destination)
+  dropCached(absolute)
+  const rootReal = await fs.realpath(root)
+  return { path: toPosix(path.relative(rootReal, destination)) }
+}
+
+export async function undeleteNote(trashPath: string, relative: string): Promise<{ path: string }> {
+  const root = await assertVault()
+  if (!trashPath.startsWith(`${TRASH_FOLDER}/`)) {
+    throw new PathError('note is not in trash')
+  }
+
+  const rootReal = await fs.realpath(root)
+  const absolute = await resolveNotePath(root, trashPath)
+  const destinationDir = path.join(root, path.dirname(relative))
+  const dirReal = await fs.realpath(destinationDir).catch(() => null)
+  if (!dirReal || !dirReal.startsWith(rootReal)) throw new PathError('folder does not exist')
+
+  const original = path.basename(absolute).replace(/^\d{4}-\d{2}-\d{2}T[0-9-]+Z__/, '')
+  const destination = await uniquePath(dirReal, original)
+
+  await fs.rename(absolute, destination)
+  dropCached(absolute)
   return { path: toPosix(path.relative(rootReal, destination)) }
 }
 

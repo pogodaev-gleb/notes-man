@@ -9,6 +9,10 @@ describe('normalizeRelative', () => {
     expect(normalizeRelative('1-Projects/foo/2026-01-01-bar.md')).toBe('1-Projects/foo/2026-01-01-bar.md')
   })
 
+  it('accepts a plain text note', () => {
+    expect(normalizeRelative('0-Inbox/notes.txt')).toBe('0-Inbox/notes.txt')
+  })
+
   it('normalises backslashes', () => {
     expect(normalizeRelative('1-Projects\\foo.md')).toBe('1-Projects/foo.md')
   })
@@ -19,7 +23,7 @@ describe('normalizeRelative', () => {
     ['a/../../b.md', 'traversal'],
     ['/etc/passwd.md', 'absolute'],
     ['C:/notes/a.md', 'windows absolute'],
-    ['notes.txt', 'wrong extension'],
+    ['notes.pdf', 'wrong extension'],
     ['a//b.md', 'empty segment'],
   ])('rejects %s', (input) => {
     expect(() => normalizeRelative(input)).toThrow(PathError)

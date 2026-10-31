@@ -6,6 +6,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { EditorView, keymap } from '@codemirror/view'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkLinkify from 'remark-linkify'
 import { titleFromFilename } from '@/lib/slug'
 import type { NoteDocument } from '@/lib/types'
 
@@ -15,6 +16,19 @@ const CodeMirror = dynamic(() => import('@uiw/react-codemirror'), {
 })
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+const URL_PATTERN = /(?:https?:\/\/|www\.|mailto:)[^\s<>()"'`]+/g
+
+/** Return the URL that covers `offset` inside `text`, if any. */
+function urlAt(text: string, offset: number): string | null {
+  for (const match of text.matchAll(URL_PATTERN)) {
+    const start = match.index ?? 0
+    if (offset >= start && offset <= start + match[0].length) {
+      return match[0].startsWith('www.') ? `https://${match[0]}` : match[0]
+    }
+  }
+  return null
+}
 
 type Props = {
   note: NoteDocument | null
@@ -27,6 +41,7 @@ type Props = {
   onSave: () => void
   onRename: (title: string) => void
   onArchive: () => void
+  onDelete: () => void
   onMove: (folder: string) => void
   onTogglePreview: () => void
 }
@@ -42,6 +57,7 @@ export function Editor({
   onSave,
   onRename,
   onArchive,
+  onDelete,
   onMove,
   onTogglePreview,
 }: Props) {
@@ -58,6 +74,19 @@ export function Editor({
     () => [
       markdown(),
       EditorView.lineWrapping,
+      EditorView.domEventHandlers({
+        mousedown(event, view) {
+          if (!(event.metaKey || event.ctrlKey) || event.button !== 0) return false
+          const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+          if (pos === null) return false
+          const line = view.state.doc.lineAt(pos)
+          const url = urlAt(line.text, pos - line.from)
+          if (!url) return false
+          event.preventDefault()
+          window.open(url, '_blank', 'noopener,noreferrer')
+          return true
+        },
+      }),
       keymap.of([
         {
           key: 'Mod-s',
@@ -102,6 +131,9 @@ export function Editor({
         <button onClick={onTogglePreview}>{preview ? 'Quelltext' : 'Vorschau'}</button>
         <button onClick={onSave}>Speichern</button>
         <button onClick={onArchive}>Archivieren</button>
+        <button className="danger" onClick={onDelete}>
+          Löschen
+        </button>
         <select
           className="move-select"
           value={currentFolder}
@@ -119,7 +151,18 @@ export function Editor({
       <div className="editor-body">
         {preview ? (
           <div className="preview">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkLinkify]}
+              components={{
+                a: ({ children, href }) => (
+                  <a href={href} target="_blank" rel="noopener noreferrer">
+                    {children}
+                  </a>
+                ),
+              }}
+            >
+              {draft}
+            </ReactMarkdown>
           </div>
         ) : (
           <CodeMirror

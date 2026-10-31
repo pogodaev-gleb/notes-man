@@ -8,11 +8,13 @@ import {
   ARCHIVE_FOLDER,
   archiveNote,
   createNote,
+  deleteNote,
   listVault,
   readNote,
   renameNote,
   restoreNote,
   searchNotes,
+  undeleteNote,
   VaultConflictError,
   VaultUnavailableError,
   writeNote,
@@ -157,6 +159,33 @@ describe('archive and restore', () => {
     await archiveNote('1-Projects/checkout/2026-10-30-serviceadresse.md')
     const listing = await listVault()
     expect(listing.folders.find((f) => f.path === ARCHIVE_FOLDER)?.count).toBe(1)
+  })
+})
+
+describe('delete and undelete', () => {
+  const original = '1-Projects/checkout/2026-10-30-serviceadresse.md'
+
+  it('moves the note into .trash and hides it from the listing', async () => {
+    const { path: trashed } = await deleteNote(original)
+    expect(trashed.startsWith('.trash/')).toBe(true)
+    await expect(fs.access(path.join(root, trashed))).resolves.toBeUndefined()
+    await expect(fs.access(path.join(root, original))).rejects.toThrow()
+    expect((await listVault()).total).toBe(0)
+  })
+
+  it('restores a deleted note to its original path', async () => {
+    const { path: trashed } = await deleteNote(original)
+    const { path: restored } = await undeleteNote(trashed, original)
+    expect(restored).toBe(original)
+    expect((await listVault()).total).toBe(1)
+  })
+
+  it('refuses to undelete a path outside the trash', async () => {
+    await expect(undeleteNote(original, original)).rejects.toThrow(PathError)
+  })
+
+  it('rejects deleting outside the vault', async () => {
+    await expect(deleteNote('../escape.md')).rejects.toThrow(PathError)
   })
 })
 
