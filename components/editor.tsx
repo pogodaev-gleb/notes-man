@@ -22,6 +22,7 @@ type Props = {
   status: SaveStatus
   preview: boolean
   folders: string[]
+  theme: 'light' | 'dark'
   onChange: (value: string) => void
   onSave: () => void
   onRename: (title: string) => void
@@ -36,6 +37,7 @@ export function Editor({
   status,
   preview,
   folders,
+  theme,
   onChange,
   onSave,
   onRename,
@@ -123,7 +125,7 @@ export function Editor({
           <CodeMirror
             value={draft}
             height="100%"
-            theme="dark"
+            theme={theme}
             extensions={extensions}
             basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
             onChange={onChange}

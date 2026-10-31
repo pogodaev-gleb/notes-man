@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/client'
 import type { NoteDocument, SearchHit, VaultListing } from '@/lib/types'
 import { Editor, type SaveStatus } from './editor'
@@ -24,6 +24,15 @@ export function Workspace() {
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [preview, setPreview] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('theme')
+        if (stored === 'light' || stored === 'dark') return stored
+      } catch (e) {}
+    }
+    return 'dark'
+  })
 
   const refresh = useCallback(async () => {
     try {
@@ -44,6 +53,18 @@ export function Workspace() {
       window.removeEventListener('focus', onFocus)
     }
   }, [refresh])
+
+  useLayoutEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const toggleTheme = useCallback(() => {
+    setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+  }, [])
 
   useEffect(() => {
     const trimmed = query.trim()
@@ -70,10 +91,18 @@ export function Workspace() {
       setDraft(document.content)
       setStatus('idle')
       setPreview(false)
+      localStorage.setItem('lastNote', document.path)
     } catch (cause) {
       setError((cause as Error).message)
     }
   }, [])
+
+  useEffect(() => {
+    const lastNote = localStorage.getItem('lastNote')
+    if (lastNote) {
+      void openNote(lastNote)
+    }
+  }, [openNote])
 
   const save = useCallback(
     async (content: string) => {
@@ -216,6 +245,9 @@ export function Workspace() {
           <span className="header-meta">
             {listing ? `${listing.total} Notizen` : 'lade…'}
           </span>
+          <button className="ghost" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
         </header>
 
         <Sidebar
@@ -251,6 +283,7 @@ export function Workspace() {
           status={status}
           preview={preview}
           folders={folders}
+          theme={theme}
           onChange={setDraft}
           onSave={() => void save(draft)}
           onRename={(title) => void renameNote(title)}
