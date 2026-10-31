@@ -52,7 +52,7 @@ async function walk(root: string, dir: string, notes: NoteMeta[]): Promise<void>
       await walk(root, absolute, notes)
       continue
     }
-    if (!dirent.isFile() || !dirent.name.endsWith('.md')) continue
+    if (!dirent.isFile() || !(dirent.name.endsWith('.md') || dirent.name.endsWith('.txt'))) continue
 
     const stat = await fs.stat(absolute).catch(() => null)
     if (!stat) continue
@@ -201,6 +201,27 @@ export async function restoreNote(relative: string): Promise<{ path: string }> {
   await fs.rename(absolute, destination)
   dropCached(absolute)
   const rootReal = await fs.realpath(root)
+  return { path: toPosix(path.relative(rootReal, destination)) }
+}
+
+export async function moveNote(relative: string, targetFolder: string): Promise<{ path: string }> {
+  const root = await assertVault()
+  const cleanFolder = targetFolder.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') || INBOX_FOLDER
+  const segments = cleanFolder.split('/')
+  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    throw new PathError('invalid folder')
+  }
+
+  const absolute = await resolveNotePath(root, relative)
+  const destinationDir = path.join(root, cleanFolder)
+  const dirReal = await fs.realpath(destinationDir).catch(() => null)
+  const rootReal = await fs.realpath(root)
+  if (!dirReal || !dirReal.startsWith(rootReal)) throw new PathError('folder does not exist')
+
+  const destination = await uniquePath(dirReal, path.basename(absolute))
+
+  await fs.rename(absolute, destination)
+  dropCached(absolute)
   return { path: toPosix(path.relative(rootReal, destination)) }
 }
 

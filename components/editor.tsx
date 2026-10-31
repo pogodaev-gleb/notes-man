@@ -21,10 +21,12 @@ type Props = {
   draft: string
   status: SaveStatus
   preview: boolean
+  folders: string[]
   onChange: (value: string) => void
   onSave: () => void
   onRename: (title: string) => void
   onArchive: () => void
+  onMove: (folder: string) => void
   onTogglePreview: () => void
 }
 
@@ -33,10 +35,12 @@ export function Editor({
   draft,
   status,
   preview,
+  folders,
   onChange,
   onSave,
   onRename,
   onArchive,
+  onMove,
   onTogglePreview,
 }: Props) {
   const saveRef = useRef(onSave)
@@ -77,6 +81,8 @@ export function Editor({
   const statusText =
     status === 'saving' ? 'speichert…' : status === 'saved' ? 'gespeichert' : status === 'error' ? 'Fehler' : ''
 
+  const currentFolder = note.path.split('/').slice(0, -1).join('/') || '0-Inbox'
+
   return (
     <main className="editor">
       <div className="editor-bar">
@@ -94,6 +100,18 @@ export function Editor({
         <button onClick={onTogglePreview}>{preview ? 'Quelltext' : 'Vorschau'}</button>
         <button onClick={onSave}>Speichern</button>
         <button onClick={onArchive}>Archivieren</button>
+        <select
+          className="move-select"
+          value={currentFolder}
+          onChange={(e) => e.target.value !== currentFolder && onMove(e.target.value)}
+          aria-label="Notiz verschieben"
+        >
+          {folders.map((f) => (
+            <option key={f} value={f}>
+              {f}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="editor-body">

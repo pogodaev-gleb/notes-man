@@ -25,7 +25,7 @@ export function normalizeRelative(input: string): string {
     }
   }
 
-  if (!unified.endsWith('.md')) throw new PathError('only .md files are allowed')
+  if (!unified.endsWith('.md') && !unified.endsWith('.txt')) throw new PathError('only .md and .txt files are allowed')
   return segments.join('/')
 }
 

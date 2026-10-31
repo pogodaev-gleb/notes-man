@@ -159,6 +159,28 @@ export function Workspace() {
     }
   }, [note, refresh])
 
+  const moveNote = useCallback(
+    async (targetFolder: string) => {
+      if (!note) return
+      const path = note.path
+      try {
+        const moved = await api<{ path: string }>('/api/note/move', {
+          method: 'POST',
+          body: JSON.stringify({ path, folder: targetFolder }),
+        })
+        await refresh()
+        await openNote(moved.path)
+        setToast({
+          id: Date.now(),
+          message: `Verschoben nach ${targetFolder}`,
+        })
+      } catch (cause) {
+        setError((cause as Error).message)
+      }
+    },
+    [note, refresh, openNote],
+  )
+
   useEffect(() => {
     if (!toast) return
     const timer = setTimeout(() => setToast(null), 6000)
@@ -174,6 +196,10 @@ export function Workspace() {
 
   const heading = hits ? `Suche: ${query.trim()}` : folder === null ? 'Zuletzt bearbeitet' : folder
   const emptyText = hits ? 'Keine Treffer.' : 'Keine Notizen in diesem Ordner.'
+  const folders = useMemo(
+    () => listing?.allFolders.sort((a, b) => a.localeCompare(b)) ?? [],
+    [listing],
+  )
 
   return (
     <>
@@ -224,10 +250,12 @@ export function Workspace() {
           draft={draft}
           status={status}
           preview={preview}
+          folders={folders}
           onChange={setDraft}
           onSave={() => void save(draft)}
           onRename={(title) => void renameNote(title)}
           onArchive={() => void archiveNote()}
+          onMove={(folder) => void moveNote(folder)}
           onTogglePreview={() => setPreview((current) => !current)}
         />
       </div>
